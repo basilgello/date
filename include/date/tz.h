@@ -82,12 +82,6 @@ static_assert(HAS_REMOTE_API == 0 ? AUTO_DOWNLOAD == 0 : true,
 #  define USE_SHELL_API 1
 #endif
 
-#if USE_OS_TZDB
-#  ifdef _WIN32
-#    error "USE_OS_TZDB can not be used on Windows"
-#  endif
-#endif
-
 #ifndef HAS_DEDUCTION_GUIDES
 #  if __cplusplus >= 201703
 #    define HAS_DEDUCTION_GUIDES 1
@@ -144,6 +138,23 @@ enum class choose {earliest, latest};
 struct tzdb;
 static std::unique_ptr<tzdb> init_tzdb();
 # endif // defined(ANDROID) || defined(__ANDROID__)
+
+# if _WIN32 && USE_OS_TZDB
+
+// from stl/inc/__msvc_tzdb.hpp
+
+enum class __std_tzdb_sys_info_type : char {
+    // TRANSITION, ABI: In order to be compatible with existing object files which do not know about
+    // `__std_tzdb_sys_info_type`, the type is passed in the after-end byte of a string passed with its length to
+    // `__std_tzdb_get_sys_info`. Since older object files always pass the `.c_str()` of a `std::string`
+    // to that function, the after-end byte will always be '\0'.
+    _Full = '\0',
+    _Offset_only,
+    _Offset_and_range,
+};
+
+# endif // _WIN32 && USE_OS_TZDB
+
 #endif // defined(BUILD_TZ_LIB)
 
 namespace detail
@@ -787,8 +798,10 @@ class time_zone
 private:
     std::string                          name_;
 #if USE_OS_TZDB
+# if !_WIN32
     std::vector<detail::transition>      transitions_;
     std::vector<detail::expanded_ttinfo> ttinfos_;
+# endif // !_WIN32
 #else  // !USE_OS_TZDB
     std::vector<detail::zonelet>         zonelets_;
 #endif  // !USE_OS_TZDB
@@ -840,6 +853,11 @@ private:
     DATE_API sys_info   get_info_impl(sys_seconds tp) const;
     DATE_API local_info get_info_impl(local_seconds tp) const;
 
+#if defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
+    sys_info   get_win_info_impl(sys_seconds tp, __std_tzdb_sys_info_type kind) const;
+    local_info get_win_info_impl(local_seconds tp, __std_tzdb_sys_info_type kind) const;
+#endif // defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
+
     template <class Duration>
         sys_time<typename std::common_type<Duration, std::chrono::seconds>::type>
         to_sys_impl(local_time<Duration> tp, choose z, std::false_type) const;
@@ -850,6 +868,8 @@ private:
 #if USE_OS_TZDB
     DATE_API void init() const;
     DATE_API void init_impl();
+
+# if !_WIN32
     DATE_API sys_info
         load_sys_info(std::vector<detail::transition>::const_iterator i) const;
 
@@ -857,6 +877,8 @@ private:
     DATE_API void
     load_data(std::istream& inf, std::int32_t tzh_leapcnt, std::int32_t tzh_timecnt,
                                  std::int32_t tzh_typecnt, std::int32_t tzh_charcnt);
+# endif // !_WIN32
+
 # if defined(ANDROID) || defined(__ANDROID__)
     void parse_from_android_tzdata(std::ifstream& inf, const std::size_t off);
 # endif // defined(ANDROID) || defined(__ANDROID__)
@@ -933,7 +955,11 @@ local_time<typename std::common_type<Duration, std::chrono::seconds>::type>
 time_zone::to_local(sys_time<Duration> tp) const
 {
     using LT = local_time<typename std::common_type<Duration, std::chrono::seconds>::type>;
+#if defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
+    auto i = get_win_info_impl(tp, __std_tzdb_sys_info_type::_Offset_only);
+#else // !defined(BUILD_TZ_LIB) && !_WIN32 && !USE_OS_TZDB
     auto i = get_info(tp);
+#endif // defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
     return LT{(tp + i.offset).time_since_epoch()};
 }
 
@@ -949,7 +975,11 @@ template <class Duration>
 sys_time<typename std::common_type<Duration, std::chrono::seconds>::type>
 time_zone::to_sys_impl(local_time<Duration> tp, choose z, std::false_type) const
 {
+#if defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
+    auto i = get_win_info_impl(tp, __std_tzdb_sys_info_type::_Offset_and_range);
+#else // !defined(BUILD_TZ_LIB) && !_WIN32 && !USE_OS_TZDB
     auto i = get_info(tp);
+#endif // defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
     if (i.result == local_info::nonexistent)
     {
         return i.first.end;
@@ -966,7 +996,11 @@ template <class Duration>
 sys_time<typename std::common_type<Duration, std::chrono::seconds>::type>
 time_zone::to_sys_impl(local_time<Duration> tp, choose, std::true_type) const
 {
+#if defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
+    auto i = get_win_info_impl(tp, __std_tzdb_sys_info_type::_Offset_and_range);
+#else // !defined(BUILD_TZ_LIB) && !_WIN32 && !USE_OS_TZDB
     auto i = get_info(tp);
+#endif // defined(BUILD_TZ_LIB) && _WIN32 && USE_OS_TZDB
     if (i.result == local_info::nonexistent)
         throw nonexistent_local_time(tp, i);
     else if (i.result == local_info::ambiguous)

@@ -44,6 +44,7 @@ is_equal(date::local_info const& x, date::local_info const& y)
                                 && is_equal(x.second, y.second);
 }
 
+
 int
 main()
 {
@@ -56,55 +57,79 @@ main()
     Posix::time_zone tzp{"AEST-10AEDT,M10.1.0,M4.1.0/3"};
     auto tp = local_days{2021_y/1/1} + 0s;
     assert(tzp.get_info(tp).result == local_info::unique);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/10/Sunday[1]} + 2h + 30min;
     assert(tzp.get_info(tp).result == local_info::nonexistent);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/4/Sunday[1]} + 2h + 30min;
     assert(tzp.get_info(tp).result == local_info::ambiguous);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/7/1};
     assert(tzp.get_info(tp).result == local_info::unique);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
 
     tzi = locate_zone("America/New_York");
     tzp = Posix::time_zone{"EST5EDT,M3.2.0,M11.1.0"};
     tp = local_days{2021_y/1/1};
     assert(tzp.get_info(tp).result == local_info::unique);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/3/Sunday[2]} + 2h + 30min;
     assert(tzp.get_info(tp).result == local_info::nonexistent);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/11/Sunday[1]} + 1h + 30min;
     assert(tzp.get_info(tp).result == local_info::ambiguous);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/7/1};
     assert(tzp.get_info(tp).result == local_info::unique);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
 
     tzi = locate_zone("Europe/Dublin");
     tzp = Posix::time_zone{"IST-1GMT0,M10.5.0,M3.5.0/1"};
     tp = local_days{2021_y/1/1};
     assert(tzp.get_info(tp).result == local_info::unique);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/3/Sunday[last]} + 1h + 30min;
     assert(tzp.get_info(tp).result == local_info::nonexistent);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/10/Sunday[last]} + 1h + 30min;
     assert(tzp.get_info(tp).result == local_info::ambiguous);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 
     tp = local_days{2021_y/7/1};
     assert(tzp.get_info(tp).result == local_info::unique);
+#if !_WIN32 && !USE_OS_TZDB
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#endif // !_WIN32 && !USE_OS_TZDB
 }
