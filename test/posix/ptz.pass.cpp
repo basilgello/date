@@ -22,6 +22,8 @@
 
 // Test Posix::time_zone
 
+#if !_WIN32 && !USE_OS_TZDB
+
 #include "tz.h"
 #include "ptz.h"
 #include <cassert>
@@ -44,9 +46,12 @@ is_equal(date::local_info const& x, date::local_info const& y)
                                 && is_equal(x.second, y.second);
 }
 
+#endif // !_WIN32 && !USE_OS_TZDB
+
 int
 main()
 {
+#if !_WIN32 && !USE_OS_TZDB
     using namespace date;
     using namespace std;
     using namespace std::chrono;
@@ -107,4 +112,7 @@ main()
     tp = local_days{2021_y/7/1};
     assert(tzp.get_info(tp).result == local_info::unique);
     assert(is_equal(tzi->get_info(tp), tzp.get_info(tp)));
+#else // _WIN32 || USE_OS_TZDB
+    return 0;
+#endif // !_WIN32 && !USE_OS_TZDB
 }

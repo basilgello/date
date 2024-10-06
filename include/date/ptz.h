@@ -73,6 +73,12 @@ namespace Posix
 namespace detail
 {
 
+#if USE_OS_TZDB
+#  ifdef _WIN32
+#    error "Posix timezones do not work with USE_OS_TZDB on Windows because of ICU data format!"
+#  endif
+#endif
+
 #if HAS_STRING_VIEW
 
 using string_t = std::string_view;
