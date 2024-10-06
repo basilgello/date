@@ -1915,6 +1915,7 @@ time_zone::time_zone(const std::string& s, detail::undocumented)
 {
 }
 
+#if !_WIN32
 enum class endian
 {
     native = __BYTE_ORDER__,
@@ -2221,12 +2222,17 @@ time_zone::load_data(std::istream& inf,
         transitions_[i].info = ttinfos_.data() + indices[j];
 }
 
+#endif // !_WIN32
+
 void
 time_zone::init_impl()
 {
-#if defined(ANDROID) || defined(__ANDROID__)
+#if _WIN32
+XXX
     return;
-#endif // defined(ANDROID) || defined(__ANDROID__)
+#elif defined(ANDROID) || defined(__ANDROID__)
+    return;
+#else // !_WIN32 && !defined(ANDROID) && !defined(__ANDROID__)
     using namespace std;
     using namespace std::chrono;
     auto name = get_tz_dir() + ('/' + name_);
@@ -2247,22 +2253,22 @@ time_zone::init_impl()
     }
     else
     {
-#if !defined(NDEBUG)
+# if !defined(NDEBUG)
         inf.ignore((4+1)*tzh_timecnt + 6*tzh_typecnt + tzh_charcnt + 8*tzh_leapcnt +
                    tzh_ttisstdcnt + tzh_ttisgmtcnt);
         load_header(inf);
         auto v2 = load_version(inf);
         assert(v == v2);
         skip_reserve(inf);
-#else  // defined(NDEBUG)
+# else  // defined(NDEBUG)
         inf.ignore((4+1)*tzh_timecnt + 6*tzh_typecnt + tzh_charcnt + 8*tzh_leapcnt +
                    tzh_ttisstdcnt + tzh_ttisgmtcnt + (4+1+15));
-#endif  // defined(NDEBUG)
+# endif  // defined(NDEBUG)
         load_counts(inf, tzh_ttisgmtcnt, tzh_ttisstdcnt, tzh_leapcnt,
                          tzh_timecnt,    tzh_typecnt,    tzh_charcnt);
         load_data<int64_t>(inf, tzh_leapcnt, tzh_timecnt, tzh_typecnt, tzh_charcnt);
     }
-#if !MISSING_LEAP_SECONDS
+# if !MISSING_LEAP_SECONDS
     if (tzh_leapcnt > 0)
     {
         auto& leap_seconds = get_tzdb_list().front().leap_seconds;
@@ -2287,7 +2293,7 @@ time_zone::init_impl()
             t->timepoint -= leap_count;
         }
     }
-#endif  // !MISSING_LEAP_SECONDS
+# endif  // !MISSING_LEAP_SECONDS
     auto b = transitions_.begin();
     auto i = transitions_.end();
     if (i != b)
@@ -2300,6 +2306,7 @@ time_zone::init_impl()
                 i = transitions_.erase(i);
         }
     }
+#endif // !_WIN32 && !defined(ANDROID) && !defined(__ANDROID__)
 }
 
 void
@@ -2308,6 +2315,7 @@ time_zone::init() const
     std::call_once(*adjusted_, [this]() {const_cast<time_zone*>(this)->init_impl();});
 }
 
+#if !_WIN32
 sys_info
 time_zone::load_sys_info(std::vector<detail::transition>::const_iterator i) const
 {
@@ -2334,10 +2342,12 @@ time_zone::load_sys_info(std::vector<detail::transition>::const_iterator i) cons
     }
     return r;
 }
+#endif // !_WIN32
 
 sys_info
 time_zone::get_info_impl(sys_seconds tp) const
 {
+#if !_WIN32
     using namespace std;
     init();
     return load_sys_info(upper_bound(transitions_.begin(), transitions_.end(), tp,
@@ -2345,11 +2355,15 @@ time_zone::get_info_impl(sys_seconds tp) const
                                      {
                                          return x < t.timepoint;
                                      }));
+#else // _WIN32
+XXX
+#endif // !_WIN32
 }
 
 local_info
 time_zone::get_info_impl(local_seconds tp) const
 {
+#if !_WIN32
     using namespace std::chrono;
     init();
     local_info i{};
@@ -2386,6 +2400,9 @@ time_zone::get_info_impl(local_seconds tp) const
             i.second = {};
     }
     return i;
+#else // _WIN32
+XXX
+#endif // !_WIN32
 }
 
 #if defined(ANDROID) || defined(__ANDROID__)
@@ -2475,6 +2492,7 @@ operator<<(std::ostream& os, const time_zone& z)
     z.init();
     os << z.name_ << '\n';
     os << "Initially:           ";
+#if !_WIN32
     auto const& t = z.transitions_.front();
     if (t.info->offset >= seconds{0})
         os << '+';
@@ -2486,6 +2504,9 @@ operator<<(std::ostream& os, const time_zone& z)
     os << t.info->abbrev << '\n';
     for (auto i = std::next(z.transitions_.cbegin()); i < z.transitions_.cend(); ++i)
         os << *i << '\n';
+#else // _WIN32
+XXX
+#endif // !_WIN32
     return os;
 }
 

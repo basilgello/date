@@ -787,8 +787,10 @@ class time_zone
 private:
     std::string                          name_;
 #if USE_OS_TZDB
+# if !_WIN32
     std::vector<detail::transition>      transitions_;
     std::vector<detail::expanded_ttinfo> ttinfos_;
+# endif // !_WIN32
 #else  // !USE_OS_TZDB
     std::vector<detail::zonelet>         zonelets_;
 #endif  // !USE_OS_TZDB
@@ -850,6 +852,7 @@ private:
 #if USE_OS_TZDB
     DATE_API void init() const;
     DATE_API void init_impl();
+# if !_WIN32
     DATE_API sys_info
         load_sys_info(std::vector<detail::transition>::const_iterator i) const;
 
@@ -857,6 +860,7 @@ private:
     DATE_API void
     load_data(std::istream& inf, std::int32_t tzh_leapcnt, std::int32_t tzh_timecnt,
                                  std::int32_t tzh_typecnt, std::int32_t tzh_charcnt);
+# endif // !_WIN32
 # if defined(ANDROID) || defined(__ANDROID__)
     void parse_from_android_tzdata(std::ifstream& inf, const std::size_t off);
 # endif // defined(ANDROID) || defined(__ANDROID__)
@@ -872,7 +876,9 @@ private:
 inline
 time_zone::time_zone(time_zone&& src)
     : name_(std::move(src.name_))
+# if !USE_OS_TZDB
     , zonelets_(std::move(src.zonelets_))
+# endif // !USE_OS_TZDB
     , adjusted_(std::move(src.adjusted_))
     {}
 
@@ -881,7 +887,9 @@ time_zone&
 time_zone::operator=(time_zone&& src)
 {
     name_ = std::move(src.name_);
+# if !USE_OS_TZDB
     zonelets_ = std::move(src.zonelets_);
+# endif // !USE_OS_TZDB
     adjusted_ = std::move(src.adjusted_);
     return *this;
 }
@@ -949,6 +957,7 @@ template <class Duration>
 sys_time<typename std::common_type<Duration, std::chrono::seconds>::type>
 time_zone::to_sys_impl(local_time<Duration> tp, choose z, std::false_type) const
 {
+#if !_WIN32 && !USE_OS_TZDB
     auto i = get_info(tp);
     if (i.result == local_info::nonexistent)
     {
@@ -960,18 +969,25 @@ time_zone::to_sys_impl(local_time<Duration> tp, choose z, std::false_type) const
             return sys_time<Duration>{tp.time_since_epoch()} - i.second.offset;
     }
     return sys_time<Duration>{tp.time_since_epoch()} - i.first.offset;
+#else // _WIN32 && USE_OS_TZDB
+XXX
+#endif // !_WIN32 && !USE_OS_TZDB
 }
 
 template <class Duration>
 sys_time<typename std::common_type<Duration, std::chrono::seconds>::type>
 time_zone::to_sys_impl(local_time<Duration> tp, choose, std::true_type) const
 {
+#if !_WIN32 && !USE_OS_TZDB
     auto i = get_info(tp);
     if (i.result == local_info::nonexistent)
         throw nonexistent_local_time(tp, i);
     else if (i.result == local_info::ambiguous)
         throw ambiguous_local_time(tp, i);
     return sys_time<Duration>{tp.time_since_epoch()} - i.first.offset;
+#else // _WIN32 && USE_OS_TZDB
+XXX
+#endif // !_WIN32 && !USE_OS_TZDB
 }
 
 #if !USE_OS_TZDB
