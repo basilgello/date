@@ -387,16 +387,19 @@ namespace {
         const HMODULE _Icu_Module, const HMODULE _IcuIn_Module, const HMODULE _IcuUc_Module,
         _STD atomic<_Ty>& _Stored_Pfn, LPCSTR _Fn_name, DWORD& _Last_error) noexcept {
         const HMODULE _icus[3] = {_Icu_Module, _IcuIn_Module, _IcuUc_Module};
+        DWORD last_error = E_FAIL;
         for (int i = 0; i < 3; i++) {
-            if (_icus[i] == nullptr) break;
+            if (_icus[i] == nullptr) continue;
             const auto _Pfn = reinterpret_cast<_Ty>(GetProcAddress(_icus[i], _Fn_name));
             if (_Pfn != nullptr) {
                 _Stored_Pfn.store(_Pfn, _STD memory_order_relaxed);
+                last_error = S_OK;
                 break;
             } else {
-                _Last_error = GetLastError();
+                last_error = GetLastError();
             }
         }
+        if (!SUCCEEDED(last_error)) _Last_error = last_error;
     }
 
     [[nodiscard]] _Icu_api_level _Init_icu_functions(_Icu_api_level _Level) noexcept {
@@ -481,7 +484,12 @@ namespace {
         DWORD dwFVISize = GetFileVersionInfoSizeW(_Icu_DLL_Name.c_str(), &dwDummy);
         LPBYTE lpVersionInfo = new BYTE[dwFVISize];
         if (GetFileVersionInfoW(_Icu_DLL_Name.c_str(), 0, dwFVISize, lpVersionInfo) == 0) {
-            return _Level;
+            delete[] lpVersionInfo;
+            DWORD dwFVISize = GetFileVersionInfoSizeW(_IcuIn_DLL_Name.c_str(), &dwDummy);
+            lpVersionInfo = new BYTE[dwFVISize];
+            if (GetFileVersionInfoW(_IcuIn_DLL_Name.c_str(), 0, dwFVISize, lpVersionInfo) == 0) {
+                return _Level;
+            }
         }
 
         UINT uLen;
